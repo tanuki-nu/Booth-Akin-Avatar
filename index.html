@@ -176,6 +176,11 @@
             100% { transform: rotate(360deg); }
         }
 
+        /* Debug Info (hidden) */
+        #debug-info {
+            display: none;
+        }
+
         @media (max-width: 480px) {
             #app {
                 padding: 1.5rem;
@@ -200,7 +205,7 @@
 
     <!-- Start Screen -->
     <div id="start-screen" class="screen active">
-        <p>20個の質問に答えると、あなたの好みにぴったりのアバターを推測します。</p>
+        <p>20個の質問に答えると、あなたの好みにぴったりのアイテムを推測します。</p>
         <button class="option-btn" onclick="startQuiz()" style="width: 100%; background-color: var(--primary-color); color: white;">診断を始める</button>
     </div>
 
@@ -225,6 +230,14 @@
         </div>
         <button class="retry-btn" onclick="resetQuiz()">もう一度診断する</button>
     </div>
+</div>
+
+<!-- Hidden Debug Info -->
+<div id="debug-info">
+    <div id="debug-user-pref"></div>
+    <div id="debug-current-best"></div>
+    <div id="debug-csv-status"></div>
+    <div id="debug-vector-dim"></div>
 </div>
 
 <script>
@@ -257,14 +270,17 @@
     let userPref = [];
     let questionVectors = [];
     let vectorDim = 0;
+    let currentBestMatch = null;
 
     // 初期化
     async function init() {
         try {
             await loadCSV();
+            updateDebugInfo();
             document.getElementById('loading-overlay').style.display = 'none';
         } catch (error) {
             console.error("CSVの読み込みに失敗しました:", error);
+            updateDebugInfo(`CSV読み込みエラー: ${error.message}`);
             alert("データの読み込みに失敗しました。dataset内にデータセットが存在するか確認してください。");
         }
     }
@@ -272,7 +288,9 @@
     // CSV読み込みとパース
     async function loadCSV() {
         const response = await fetch(CSV_FILE);
-        if (!response.ok) throw new Error("File not found");
+        if (!response.ok) {
+            throw new Error(`HTTP Error: ${response.status}`);
+        }
         const text = await response.text();
         
         const lines = text.split(/\r?\n/);
@@ -283,29 +301,44 @@
             if (!line) continue;
 
             // 簡易CSVパース（カンマ区切り、ただしJSON配列内のカンマに注意が必要）
-            // ここではJSON配列が [] で囲まれていることを前提に、正規表現で分割
             const parts = parseCSVLine(line);
-            if (parts.length < 5) continue;
+            if (parts.length < 5) {
+                console.warn(`行 ${i} のカラム数が不足しています:`, parts.length);
+                continue;
+            }
 
             try {
+                const vectorStr = parts[1].trim();
+                const parsedVector = JSON.parse(vectorStr);
+                
+                if (!Array.isArray(parsedVector)) {
+                    throw new Error("ベクトルは配列である必要があります");
+                }
+
                 const item = {
-                    id: parts[0],
-                    vector: JSON.parse(parts[1]),
-                    url: parts[2],
-                    title: parts[3],
-                    icon_url: parts[4]
+                    id: parts[0].trim(),
+                    vector: parsedVector,
+                    url: parts[2].trim(),
+                    title: parts[3].trim(),
+                    icon_url: parts[4].trim()
                 };
                 items.push(item);
                 
                 // ベクトルの次元数を取得
                 if (vectorDim === 0) {
                     vectorDim = item.vector.length;
+                    console.log(`ベクトル次元数: ${vectorDim}`);
                     generateQuestionVectors(vectorDim);
                     userPref = new Array(vectorDim).fill(0);
                 }
             } catch (e) {
-                console.warn("行のパースに失敗しました:", line, e);
+                console.warn(`行 ${i} のパースに失敗しました:`, line, e);
             }
+        }
+
+        console.log(`読み込み完了: ${items.length} アイテム`);
+        if (items.length === 0) {
+            throw new Error("CSVからアイテムを読み込めませんでした");
         }
     }
 
@@ -318,18 +351,18 @@
 
         for (let i = 0; i < line.length; i++) {
             const char = line[i];
-            if (char === '[' ) inArray = true;
-            if (char === ']' ) inArray = false;
+            if (char === '[') inArray = true;
+            if (char === ']') inArray = false;
             if (char === '"') inQuotes = !inQuotes;
 
             if (char === ',' && !inArray && !inQuotes) {
-                result.push(cur.trim());
+                result.push(cur);
                 cur = "";
             } else {
                 cur += char;
             }
         }
-        result.push(cur.trim());
+        result.push(cur);
         return result;
     }
 
@@ -337,15 +370,15 @@
     function generateQuestionVectors(dim) {
         questionVectors = [];
         for (let i = 0; i < QUESTIONS.length; i++) {
-            // 簡易的な生成: 各質問が特定の次元に対応するようにする
-            // 20問あるので、次元数が足りない場合はループ、多い場合はそのまま
             let v = new Array(dim).fill(0);
             v[i % dim] = 1.0; 
             
             // 少し複雑にするため、隣接する次元にも少し影響を与える
             if (dim > 1) {
                 v[(i + 1) % dim] = 0.2;
-                v[(i - 1 + dim) % dim] = 0.2;
+                if (i > 0) {
+                    v[(i - 1) % dim] = 0.2;
+                }
             }
             
             questionVectors.push(v);
@@ -356,6 +389,7 @@
     function startQuiz() {
         currentQuestionIndex = 0;
         userPref = new Array(vectorDim).fill(0);
+        currentBestMatch = null;
         showScreen('question-screen');
         updateQuestion();
     }
@@ -374,6 +408,10 @@
         for (let i = 0; i < vectorDim; i++) {
             userPref[i] += qVec[i] * weight;
         }
+
+        // 現在のベストマッチを更新
+        updateCurrentBestMatch();
+        updateDebugInfo();
 
         currentQuestionIndex++;
 
@@ -398,8 +436,8 @@
         return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
     }
 
-    // 結果表示
-    function showResult() {
+    // 現在のベストマッチを更新
+    function updateCurrentBestMatch() {
         let bestMatch = null;
         let maxSim = -Infinity;
 
@@ -411,18 +449,29 @@
             }
         });
 
+        currentBestMatch = {
+            item: bestMatch,
+            similarity: maxSim
+        };
+    }
+
+    // 結果表示
+    function showResult() {
         const resultContent = document.getElementById('result-content');
-        if (bestMatch) {
+        
+        if (currentBestMatch && currentBestMatch.item) {
+            const item = currentBestMatch.item;
             resultContent.innerHTML = `
-                <img src="${bestMatch.icon_url}" alt="${bestMatch.title}" class="result-image" onerror="this.src='https://via.placeholder.com/150?text=No+Image'">
-                <div class="result-title">${bestMatch.title}</div>
-                <div class="result-score">類似度スコア: ${maxSim.toFixed(3)}</div>
-                <a href="${bestMatch.url}" target="_blank" class="booth-link">Boothで見る</a>
+                <img src="${item.icon_url}" alt="${item.title}" class="result-image" onerror="this.src='https://via.placeholder.com/150?text=No+Image'">
+                <div class="result-title">${item.title}</div>
+                <div class="result-score">類似度スコア: ${currentBestMatch.similarity.toFixed(3)}</div>
+                <a href="${item.url}" target="_blank" class="booth-link">Boothで見る</a>
             `;
         } else {
-            resultContent.innerHTML = "<p>該当するアイテムが見つかりませんでした。</p>";
+            resultContent.innerHTML = "<p>申し訳ございません。推測に失敗しました。もう一度お試しください。</p>";
         }
 
+        updateDebugInfo();
         showScreen('result-screen');
     }
 
@@ -435,6 +484,33 @@
     // リセット
     function resetQuiz() {
         showScreen('start-screen');
+    }
+
+    // デバッグ情報を更新（内部保持、表示なし）
+    function updateDebugInfo(errorMsg = null) {
+        const debugInfo = {
+            timestamp: new Date().toISOString(),
+            csvStatus: `読み込み完了: ${items.length} アイテム`,
+            vectorDim: vectorDim,
+            userPref: userPref.slice(),
+            currentQuestion: currentQuestionIndex,
+            currentBestMatch: currentBestMatch ? {
+                id: currentBestMatch.item.id,
+                title: currentBestMatch.item.title,
+                similarity: currentBestMatch.similarity.toFixed(3),
+                url: currentBestMatch.item.url
+            } : null,
+            errorMsg: errorMsg
+        };
+
+        // HTMLの隠し要素に情報を保持
+        document.getElementById('debug-user-pref').textContent = JSON.stringify(debugInfo.userPref);
+        document.getElementById('debug-current-best').textContent = JSON.stringify(debugInfo.currentBestMatch);
+        document.getElementById('debug-csv-status').textContent = debugInfo.csvStatus;
+        document.getElementById('debug-vector-dim').textContent = debugInfo.vectorDim;
+
+        // コンソールにも出力
+        console.log('Debug Info:', debugInfo);
     }
 
     // 実行
