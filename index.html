@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>アキネーター風20質問システム</title>
+    <title>BAA System</title>
     <style>
         :root {
             --primary-color: #4a90e2;
@@ -200,7 +200,7 @@
 
     <!-- Start Screen -->
     <div id="start-screen" class="screen active">
-        <p>20個の質問に答えると、あなたの好みにぴったりのアイテムを推測します。</p>
+        <p>20個の質問に答えると、あなたの好みにぴったりのアバターを推測します。</p>
         <button class="option-btn" onclick="startQuiz()" style="width: 100%; background-color: var(--primary-color); color: white;">診断を始める</button>
     </div>
 
@@ -228,7 +228,7 @@
 </div>
 
 <script>
-    const CSV_FILE = "dataset/dataset.csv";
+    const CSV_FILE = "dataset/dataset_2026_5.csv";
     const QUESTIONS = [
         "明るくパステル調の色合いが好きですか？",
         "暗めでモノトーン寄りの色合いが好きですか？",
@@ -265,7 +265,7 @@
             document.getElementById('loading-overlay').style.display = 'none';
         } catch (error) {
             console.error("CSVの読み込みに失敗しました:", error);
-            alert("データの読み込みに失敗しました。dataset/dataset.csv が存在するか確認してください。");
+            alert("データの読み込みに失敗しました。dataset内にデータセットが存在するか確認してください。");
         }
     }
 
