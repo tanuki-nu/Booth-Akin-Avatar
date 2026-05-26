@@ -3,193 +3,442 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>あなたの好みに近いBoothアイテム一覧</title>
+    <title>アキネーター風20質問システム</title>
     <style>
         :root {
-            --bg-color: #f5f5f5;
+            --primary-color: #4a90e2;
+            --secondary-color: #f5f7fa;
+            --accent-color: #ff6b6b;
+            --text-color: #333;
+            --bg-color: #f0f2f5;
             --card-bg: #ffffff;
-            --text-color: #333333;
-            --accent-color: #fc4d50; /* Booth-like pink/red */
-            --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
 
         body {
-            font-family: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif;
+            font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif;
             background-color: var(--bg-color);
             color: var(--text-color);
             margin: 0;
-            padding: 20px;
-            line-height: 1.6;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
         }
 
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
+        #app {
+            width: 90%;
+            max-width: 600px;
+            background-color: var(--card-bg);
+            padding: 2rem;
+            border-radius: 15px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            text-align: center;
         }
 
         h1 {
-            text-align: center;
-            margin-bottom: 10px;
+            font-size: 1.5rem;
+            margin-bottom: 1.5rem;
+            color: var(--primary-color);
         }
 
-        .description {
-            text-align: center;
-            margin-bottom: 40px;
+        .screen {
+            display: none;
+        }
+
+        .screen.active {
+            display: block;
+        }
+
+        /* Start Screen */
+        #start-screen p {
+            margin-bottom: 2rem;
+            line-height: 1.6;
+        }
+
+        /* Question Screen */
+        .progress {
+            font-size: 0.9rem;
             color: #666;
+            margin-bottom: 1rem;
         }
 
-        #item-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-            gap: 25px;
+        .question-text {
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin-bottom: 2rem;
+            min-height: 3em;
+            display: flex;
+            align-items: center;
             justify-content: center;
         }
 
-        .card {
-            background-color: var(--card-bg);
+        .options {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .option-btn {
+            padding: 12px;
+            border: 2px solid var(--primary-color);
+            background-color: white;
+            color: var(--primary-color);
             border-radius: 8px;
-            overflow: hidden;
-            box-shadow: var(--shadow);
-            transition: transform 0.2s ease-in-out;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .card:hover {
-            transform: translateY(-5px);
-        }
-
-        .card-image {
-            width: 100%;
-            height: 200px;
-            object-fit: cover;
-            border-bottom: 1px solid #eee;
-        }
-
-        .card-content {
-            padding: 15px;
-            display: flex;
-            flex-direction: column;
-            flex-grow: 1;
-        }
-
-        .card-title {
+            cursor: pointer;
             font-size: 1rem;
+            transition: all 0.2s;
+        }
+
+        .option-btn:hover {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        /* Result Screen */
+        .result-card {
+            margin-top: 1.5rem;
+            padding: 1.5rem;
+            border: 1px solid #eee;
+            border-radius: 10px;
+            background-color: #fafafa;
+        }
+
+        .result-image {
+            width: 150px;
+            height: 150px;
+            object-fit: cover;
+            border-radius: 10px;
+            margin-bottom: 1rem;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+
+        .result-title {
+            font-size: 1.2rem;
             font-weight: bold;
-            margin: 0 0 10px 0;
-            display: -webkit-box;
-            -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical;
-            overflow: hidden;
-            height: 3em;
+            margin-bottom: 0.5rem;
         }
 
-        .card-id {
-            font-size: 0.8rem;
-            color: #888;
-            margin-bottom: 15px;
+        .result-score {
+            font-size: 0.9rem;
+            color: #666;
+            margin-bottom: 1rem;
         }
 
-        .card-link {
-            margin-top: auto;
+        .booth-link {
             display: inline-block;
+            padding: 10px 20px;
             background-color: var(--accent-color);
             color: white;
             text-decoration: none;
-            text-align: center;
-            padding: 8px 0;
-            border-radius: 4px;
+            border-radius: 5px;
             font-weight: bold;
-            font-size: 0.9rem;
+            transition: opacity 0.2s;
         }
 
-        .card-link:hover {
-            opacity: 0.9;
+        .booth-link:hover {
+            opacity: 0.8;
         }
 
-        .loading, .error {
-            text-align: center;
-            font-size: 1.2rem;
-            margin-top: 50px;
+        .retry-btn {
+            margin-top: 2rem;
+            background: none;
+            border: none;
+            color: var(--primary-color);
+            text-decoration: underline;
+            cursor: pointer;
         }
 
-        .error {
-            color: var(--accent-color);
+        /* Loading */
+        #loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255,255,255,0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid var(--primary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 480px) {
+            #app {
+                padding: 1.5rem;
+            }
+            h1 {
+                font-size: 1.2rem;
+            }
+            .question-text {
+                font-size: 1.1rem;
+            }
         }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <h1>あなたの好みに近いBoothアイテム</h1>
-    <p class="description">あなたが選んだアイテムのベクトルから推定された、“好みに近い順”のBoothアイテムです。</p>
+<div id="loading-overlay">
+    <div class="spinner"></div>
+</div>
 
-    <div id="loading" class="loading">データを読み込み中...</div>
-    <div id="item-grid"></div>
+<div id="app">
+    <h1>20の質問で好みを推測</h1>
+
+    <!-- Start Screen -->
+    <div id="start-screen" class="screen active">
+        <p>20個の質問に答えると、あなたの好みにぴったりのアイテムを推測します。</p>
+        <button class="option-btn" onclick="startQuiz()" style="width: 100%; background-color: var(--primary-color); color: white;">診断を始める</button>
+    </div>
+
+    <!-- Question Screen -->
+    <div id="question-screen" class="screen">
+        <div class="progress" id="progress-text">1 / 20</div>
+        <div class="question-text" id="question-text">質問内容がここに表示されます</div>
+        <div class="options">
+            <button class="option-btn" onclick="handleAnswer(1.0)">そう</button>
+            <button class="option-btn" onclick="handleAnswer(0.5)">部分的にそう</button>
+            <button class="option-btn" onclick="handleAnswer(0)">わからない</button>
+            <button class="option-btn" onclick="handleAnswer(-0.5)">部分的にいいえ</button>
+            <button class="option-btn" onclick="handleAnswer(-1.0)">いいえ</button>
+        </div>
+    </div>
+
+    <!-- Result Screen -->
+    <div id="result-screen" class="screen">
+        <h2>あなたの好みはこれかも？</h2>
+        <div class="result-card" id="result-content">
+            <!-- 結果がここに挿入されます -->
+        </div>
+        <button class="retry-btn" onclick="resetQuiz()">もう一度診断する</button>
+    </div>
 </div>
 
 <script>
-    async function loadCSV() {
-        const grid = document.getElementById('item-grid');
-        const loading = document.getElementById('loading');
+    const CSV_FILE = "dataset/dataset.csv";
+    const QUESTIONS = [
+        "明るくパステル調の色合いが好きですか？",
+        "暗めでモノトーン寄りの色合いが好きですか？",
+        "鮮やかでコントラストの強い色使いが好きですか？",
+        "ワントーンで落ち着いた配色が好きですか？",
+        "大きく強調された目がある見た目が好きですか？",
+        "控えめで小さめの目の見た目が好きですか？",
+        "リアル寄りの顔立ち（肌質や陰影が詳細）が好きですか？",
+        "アニメ・デフォルメ寄りの顔立ちが好きですか？",
+        "髪色が自然色（黒・茶・金など）が好みですか？",
+        "髪色が派手な非現実色（青・ピンク・緑など）が好みですか？",
+        "髪型が複雑・装飾的（編み込み・ツインテ等）が好きですか？",
+        "髪型がシンプルでナチュラルな方が好きですか？",
+        "肌の色味が人間らしい自然色の方が好きですか？",
+        "肌や体に非人間的な色（青・灰・緑等）がある方が好きですか？",
+        "動物的パーツ（耳・しっぽ等）がある見た目が好きですか？",
+        "ファンタジー要素（角・羽など）がある見た目が好きですか？",
+        "メタリックやサイバーな質感・光るパーツがある見た目が好きですか？",
+        "衣装やアクセサリが派手で目立つ方が好きですか？",
+        "最小限の装飾でミニマルな外見が好きですか？",
+        "中性的・ジェンダー曖昧な見た目が好みですか？"
+    ];
 
+    let items = [];
+    let currentQuestionIndex = 0;
+    let userPref = [];
+    let questionVectors = [];
+    let vectorDim = 0;
+
+    // 初期化
+    async function init() {
         try {
-            const response = await fetch('dataset.csv');
-            if (!response.ok) {
-                throw new Error('CSVファイルの取得に失敗しました。');
-            }
-
-            const csvText = await response.text();
-            const rows = csvText.split(/\r?\n/).filter(row => row.trim() !== "");
-            
-            // 1行目はヘッダー
-            const header = rows[0].split(',');
-            const dataRows = rows.slice(1);
-
-            if (dataRows.length === 0) {
-                loading.textContent = "表示できるアイテムがありません。";
-                return;
-            }
-
-            loading.style.display = 'none';
-
-            dataRows.forEach(row => {
-                // カンマ区切りで分割。単純な分割（クォート等は考慮しない簡易版）
-                const columns = row.split(',');
-                
-                // 列の対応: A=0(item_id), B=1(vector), C=2(url), D=3(title), E=4(icon_url)
-                const item = {
-                    id: columns[0],
-                    url: columns[2],
-                    title: columns[3],
-                    iconUrl: columns[4]
-                };
-
-                // カード要素の作成
-                const card = document.createElement('div');
-                card.className = 'card';
-
-                card.innerHTML = `
-                    <img src="${item.iconUrl}" alt="${item.title}" class="card-image" onerror="this.src='https://placehold.jp/200x200.png?text=No+Image'">
-                    <div class="card-content">
-                        <h2 class="card-title">${item.title}</h2>
-                        <div class="card-id">ID: ${item.id}</div>
-                        <a href="${item.url}" target="_blank" rel="noopener noreferrer" class="card-link">Boothで見る</a>
-                    </div>
-                `;
-
-                grid.appendChild(card);
-            });
-
+            await loadCSV();
+            document.getElementById('loading-overlay').style.display = 'none';
         } catch (error) {
-            console.error(error);
-            loading.className = 'error';
-            loading.textContent = 'エラー: ' + error.message;
+            console.error("CSVの読み込みに失敗しました:", error);
+            alert("データの読み込みに失敗しました。dataset/dataset.csv が存在するか確認してください。");
         }
     }
 
+    // CSV読み込みとパース
+    async function loadCSV() {
+        const response = await fetch(CSV_FILE);
+        if (!response.ok) throw new Error("File not found");
+        const text = await response.text();
+        
+        const lines = text.split(/\r?\n/);
+        items = [];
+
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i].trim();
+            if (!line) continue;
+
+            // 簡易CSVパース（カンマ区切り、ただしJSON配列内のカンマに注意が必要）
+            // ここではJSON配列が [] で囲まれていることを前提に、正規表現で分割
+            const parts = parseCSVLine(line);
+            if (parts.length < 5) continue;
+
+            try {
+                const item = {
+                    id: parts[0],
+                    vector: JSON.parse(parts[1]),
+                    url: parts[2],
+                    title: parts[3],
+                    icon_url: parts[4]
+                };
+                items.push(item);
+                
+                // ベクトルの次元数を取得
+                if (vectorDim === 0) {
+                    vectorDim = item.vector.length;
+                    generateQuestionVectors(vectorDim);
+                    userPref = new Array(vectorDim).fill(0);
+                }
+            } catch (e) {
+                console.warn("行のパースに失敗しました:", line, e);
+            }
+        }
+    }
+
+    // CSVの1行をパースする（カンマ区切り、引用符や配列を考慮）
+    function parseCSVLine(line) {
+        const result = [];
+        let cur = "";
+        let inArray = false;
+        let inQuotes = false;
+
+        for (let i = 0; i < line.length; i++) {
+            const char = line[i];
+            if (char === '[' ) inArray = true;
+            if (char === ']' ) inArray = false;
+            if (char === '"') inQuotes = !inQuotes;
+
+            if (char === ',' && !inArray && !inQuotes) {
+                result.push(cur.trim());
+                cur = "";
+            } else {
+                cur += char;
+            }
+        }
+        result.push(cur.trim());
+        return result;
+    }
+
+    // 質問ごとの特徴ベクトルを生成
+    function generateQuestionVectors(dim) {
+        questionVectors = [];
+        for (let i = 0; i < QUESTIONS.length; i++) {
+            // 簡易的な生成: 各質問が特定の次元に対応するようにする
+            // 20問あるので、次元数が足りない場合はループ、多い場合はそのまま
+            let v = new Array(dim).fill(0);
+            v[i % dim] = 1.0; 
+            
+            // 少し複雑にするため、隣接する次元にも少し影響を与える
+            if (dim > 1) {
+                v[(i + 1) % dim] = 0.2;
+                v[(i - 1 + dim) % dim] = 0.2;
+            }
+            
+            questionVectors.push(v);
+        }
+    }
+
+    // 診断開始
+    function startQuiz() {
+        currentQuestionIndex = 0;
+        userPref = new Array(vectorDim).fill(0);
+        showScreen('question-screen');
+        updateQuestion();
+    }
+
+    // 質問表示更新
+    function updateQuestion() {
+        document.getElementById('progress-text').innerText = `${currentQuestionIndex + 1} / ${QUESTIONS.length}`;
+        document.getElementById('question-text').innerText = QUESTIONS[currentQuestionIndex];
+    }
+
+    // 回答処理
+    function handleAnswer(weight) {
+        const qVec = questionVectors[currentQuestionIndex];
+        
+        // 嗜好ベクトルを更新: user_pref += qVec * weight
+        for (let i = 0; i < vectorDim; i++) {
+            userPref[i] += qVec[i] * weight;
+        }
+
+        currentQuestionIndex++;
+
+        if (currentQuestionIndex < QUESTIONS.length) {
+            updateQuestion();
+        } else {
+            showResult();
+        }
+    }
+
+    // コサイン類似度の計算
+    function cosineSimilarity(vecA, vecB) {
+        let dotProduct = 0;
+        let normA = 0;
+        let normB = 0;
+        for (let i = 0; i < vecA.length; i++) {
+            dotProduct += vecA[i] * vecB[i];
+            normA += vecA[i] * vecA[i];
+            normB += vecB[i] * vecB[i];
+        }
+        if (normA === 0 || normB === 0) return 0;
+        return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
+    }
+
+    // 結果表示
+    function showResult() {
+        let bestMatch = null;
+        let maxSim = -Infinity;
+
+        items.forEach(item => {
+            const sim = cosineSimilarity(userPref, item.vector);
+            if (sim > maxSim) {
+                maxSim = sim;
+                bestMatch = item;
+            }
+        });
+
+        const resultContent = document.getElementById('result-content');
+        if (bestMatch) {
+            resultContent.innerHTML = `
+                <img src="${bestMatch.icon_url}" alt="${bestMatch.title}" class="result-image" onerror="this.src='https://via.placeholder.com/150?text=No+Image'">
+                <div class="result-title">${bestMatch.title}</div>
+                <div class="result-score">類似度スコア: ${maxSim.toFixed(3)}</div>
+                <a href="${bestMatch.url}" target="_blank" class="booth-link">Boothで見る</a>
+            `;
+        } else {
+            resultContent.innerHTML = "<p>該当するアイテムが見つかりませんでした。</p>";
+        }
+
+        showScreen('result-screen');
+    }
+
+    // 画面切り替え
+    function showScreen(screenId) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById(screenId).classList.add('active');
+    }
+
+    // リセット
+    function resetQuiz() {
+        showScreen('start-screen');
+    }
+
     // 実行
-    window.addEventListener('DOMContentLoaded', loadCSV);
+    init();
 </script>
 
 </body>
