@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>あなたの好みに近いBoothアイテム一覧</title>
+    <style>
+        :root {
+            --bg-color: #f5f5f5;
+            --card-bg: #ffffff;
+            --text-color: #333333;
+            --accent-color: #fc4d50; /* Booth-like pink/red */
+            --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        body {
+            font-family: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 10px;
+        }
+
+        .description {
+            text-align: center;
+            margin-bottom: 40px;
+            color: #666;
+        }
+
+        #item-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 25px;
+            justify-content: center;
+        }
+
+        .card {
+            background-color: var(--card-bg);
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: var(--shadow);
+            transition: transform 0.2s ease-in-out;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+        }
+
+        .card-image {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            border-bottom: 1px solid #eee;
+        }
+
+        .card-content {
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            flex-grow: 1;
+        }
+
+        .card-title {
+            font-size: 1rem;
+            font-weight: bold;
+            margin: 0 0 10px 0;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            height: 3em;
+        }
+
+        .card-id {
+            font-size: 0.8rem;
+            color: #888;
+            margin-bottom: 15px;
+        }
+
+        .card-link {
+            margin-top: auto;
+            display: inline-block;
+            background-color: var(--accent-color);
+            color: white;
+            text-decoration: none;
+            text-align: center;
+            padding: 8px 0;
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+
+        .card-link:hover {
+            opacity: 0.9;
+        }
+
+        .loading, .error {
+            text-align: center;
+            font-size: 1.2rem;
+            margin-top: 50px;
+        }
+
+        .error {
+            color: var(--accent-color);
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>あなたの好みに近いBoothアイテム</h1>
+    <p class="description">あなたが選んだアイテムのベクトルから推定された、“好みに近い順”のBoothアイテムです。</p>
+
+    <div id="loading" class="loading">データを読み込み中...</div>
+    <div id="item-grid"></div>
+</div>
+
+<script>
+    async function loadCSV() {
+        const grid = document.getElementById('item-grid');
+        const loading = document.getElementById('loading');
+
+        try {
+            const response = await fetch('dataset.csv');
+            if (!response.ok) {
+                throw new Error('CSVファイルの取得に失敗しました。');
+            }
+
+            const csvText = await response.text();
+            const rows = csvText.split(/\r?\n/).filter(row => row.trim() !== "");
+            
+            // 1行目はヘッダー
+            const header = rows[0].split(',');
+            const dataRows = rows.slice(1);
+
+            if (dataRows.length === 0) {
+                loading.textContent = "表示できるアイテムがありません。";
+                return;
+            }
+
+            loading.style.display = 'none';
+
+            dataRows.forEach(row => {
+                // カンマ区切りで分割。単純な分割（クォート等は考慮しない簡易版）
+                const columns = row.split(',');
+                
+                // 列の対応: A=0(item_id), B=1(vector), C=2(url), D=3(title), E=4(icon_url)
+                const item = {
+                    id: columns[0],
+                    url: columns[2],
+                    title: columns[3],
+                    iconUrl: columns[4]
+                };
+
+                // カード要素の作成
+                const card = document.createElement('div');
+                card.className = 'card';
+
+                card.innerHTML = `
+                    <img src="${item.iconUrl}" alt="${item.title}" class="card-image" onerror="this.src='https://placehold.jp/200x200.png?text=No+Image'">
+                    <div class="card-content">
+                        <h2 class="card-title">${item.title}</h2>
+                        <div class="card-id">ID: ${item.id}</div>
+                        <a href="${item.url}" target="_blank" rel="noopener noreferrer" class="card-link">Boothで見る</a>
+                    </div>
+                `;
+
+                grid.appendChild(card);
+            });
+
+        } catch (error) {
+            console.error(error);
+            loading.className = 'error';
+            loading.textContent = 'エラー: ' + error.message;
+        }
+    }
+
+    // 実行
+    window.addEventListener('DOMContentLoaded', loadCSV);
+</script>
+
+</body>
+</html>
